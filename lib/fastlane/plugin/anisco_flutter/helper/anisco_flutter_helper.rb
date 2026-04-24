@@ -7,6 +7,7 @@ module Fastlane
   module Helper
     class FlutterVersionHelper
       REGEX = /^[1-9]\.\d{1,2}\.\d{1,2}\+\d{1,2}$/
+      VERSION_LINE_REGEX = /^version:\s*.+$/
       MIN_NUMBERS = [1, 0, 0, 0].freeze
       MAX_MAJOR = 9
       MAX_PART = 99
@@ -92,9 +93,18 @@ module Fastlane
         end
       end
 
-      def update_pubspec_version(pubspec, pubspec_location)
-        pubspec['version'] = @version_number
-        File.write(pubspec_location, pubspec.to_yaml)
+      def update_pubspec_version(_pubspec, pubspec_location)
+        pubspec_content = File.read(pubspec_location)
+        updated_content = pubspec_content.sub(
+          VERSION_LINE_REGEX,
+          "version: #{@version_number}"
+        )
+
+        if updated_content == pubspec_content
+          UI.user_error!("Version line not found in pubspec.yaml at #{pubspec_location}")
+        end
+
+        File.write(pubspec_location, updated_content)
       end
 
       private
