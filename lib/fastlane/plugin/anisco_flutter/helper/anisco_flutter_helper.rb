@@ -6,7 +6,7 @@ module Fastlane
 
   module Helper
     class FlutterVersionHelper
-      REGEX = /^[1-9]\.\d{1,2}\.\d{1,2}\+\d{1,2}$/
+      REGEX = /^[0-9]\.\d{1,2}\.\d{1,2}\+\d{1,2}$/
       VERSION_LINE_REGEX = /^version:\s*.+$/
       MIN_NUMBERS = [1, 0, 0, 0].freeze
       MAX_MAJOR = 9

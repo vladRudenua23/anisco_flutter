@@ -15,7 +15,7 @@ module Fastlane
         export_method = params[:export_method]
         no_codesign = params[:no_codesign]
         dart_defines = params[:dart_defines] || {}
-
+        skip_dependency_validation =  platform == 'android' ? (params[:skip_dependency_validation] || false) : false
         UI.user_error!('export_method is supported only for ios') if export_method && platform != 'ios'
         UI.user_error!('no_codesign is supported only for ios') if no_codesign && platform != 'ios'
 
@@ -34,6 +34,10 @@ module Fastlane
         if obfuscate_path
           command << '--obfuscate'
           command << "--split-debug-info=#{obfuscate_path}"
+        end
+
+        if skip_dependency_validation && platform == 'android'
+          command << '--android-skip-build-dependency-validation'
         end
 
         command << '--no-codesign' if no_codesign
@@ -94,6 +98,13 @@ module Fastlane
             type: String
           ),
           FastlaneCore::ConfigItem.new(
+            key: :skip_dependency_validation,
+            description: 'only for android',
+            optional: true,
+            type: Boolean,
+            default_value: false
+          ),
+          FastlaneCore::ConfigItem.new(
             key: :export_method,
             description: 'Only for ios',
             optional: true,
@@ -105,6 +116,7 @@ module Fastlane
             optional: true,
             type: String
           )
+
         ]
       end
 
