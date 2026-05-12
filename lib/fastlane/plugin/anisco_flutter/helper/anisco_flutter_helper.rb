@@ -6,7 +6,7 @@ module Fastlane
 
   module Helper
     class FlutterVersionHelper
-      REGEX = /^[0-9]\.\d{1,2}\.\d{1,2}\+\d{1,2}$/
+      REGEX = /^\d+\.\d+\.\d+\+\d+$/
       VERSION_LINE_REGEX = /^version:\s*.+$/
       MIN_NUMBERS = [1, 0, 0, 0].freeze
       MAX_MAJOR = 9
@@ -122,7 +122,8 @@ module Fastlane
       def validate(version_number)
         return if REGEX.match?(version_number.to_s)
 
-        raise ArgumentError, 'invalid version number, must be in format X.XX.XX+XX'
+        raise ArgumentError,
+              'invalid version number, must be in format X.Y.Z+build (integers)'
       end
     end
 
