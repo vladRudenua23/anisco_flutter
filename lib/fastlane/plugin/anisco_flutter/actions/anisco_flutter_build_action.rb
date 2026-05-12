@@ -16,8 +16,6 @@ module Fastlane
         no_codesign = params[:no_codesign]
         dart_defines = params[:dart_defines] || {}
         skip_dependency_validation =  platform == 'android' ? (params[:skip_dependency_validation] || false) : false
-        UI.user_error!('export_method is supported only for ios') if export_method && platform != 'ios'
-        UI.user_error!('no_codesign is supported only for ios') if no_codesign && platform != 'ios'
 
         flutter_command = use_fvm ? 'fvm flutter' : 'flutter'
         command = [flutter_command, 'build', variation.to_s]
