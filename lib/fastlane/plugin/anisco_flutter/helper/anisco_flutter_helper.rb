@@ -6,11 +6,12 @@ module Fastlane
 
   module Helper
     class FlutterVersionHelper
-      REGEX = /^\d+\.\d+\.\d+\+\d+$/
+      # Captures major.minor.patch+build; same pattern as validation.
+      SEGMENT_REGEX = /^(\d+)\.(\d+)\.(\d+)\+(\d+)$/
       VERSION_LINE_REGEX = /^version:\s*.+$/
-      MIN_NUMBERS = [1, 0, 0, 0].freeze
-      MAX_MAJOR = 9
-      MAX_PART = 99
+      MIN_SEMVER = [1, 0, 0, 0].freeze
+      # Max value for major, minor, patch, and build (each 0..999).
+      MAX_SEGMENT = 999
       PUBSPEC_LOCATION = './pubspec.yaml'
 
       attr_reader :version_number
@@ -54,43 +55,69 @@ module Fastlane
 
       def initialize(version_number)
         validate(version_number)
-        @version_number = version_number.to_s
+        s = version_number.to_s
+        @version_number = s
+        m = s.match(SEGMENT_REGEX)
+        @w_maj, @w_min, @w_pat, @w_bld = m.captures.map(&:length)
       end
 
+      # Increments build first (..+N). Build max 999 → patch +1, build 0.
+      # Patch max 999 → minor +1, patch 0, build 0. Same limit 999 for major/minor.
       def increment
-        numbers = parsed_numbers
+        mjr, mnr, ptch, bld = parsed_numbers
 
-        (numbers.length - 1).downto(0) do |index|
-          limit = index.zero? ? MAX_MAJOR : MAX_PART
-
-          if numbers[index] < limit
-            numbers[index] += 1
-            @version_number = format_version(numbers)
-            return @version_number
-          end
-
-          raise ArgumentError, 'version overflow' if index.zero?
-
-          numbers[index] = 0
+        if bld < MAX_SEGMENT
+          bld += 1
+        elsif ptch < MAX_SEGMENT
+          @w_bld = 1
+          bld = 0
+          ptch += 1
+        elsif mnr < MAX_SEGMENT
+          @w_bld = 1
+          bld = 0
+          ptch = 0
+          mnr += 1
+          @w_pat = 1
+        elsif mjr < MAX_SEGMENT
+          @w_bld = 1
+          bld = 0
+          ptch = 0
+          mnr = 0
+          mjr += 1
+          @w_min = 1
+          @w_pat = 1
+        else
+          raise ArgumentError, 'version overflow'
         end
+
+        format_version([mjr, mnr, ptch, bld])
       end
 
       def decrement
-        numbers = parsed_numbers
-        raise ArgumentError, "can't decrement minimum version" if numbers == MIN_NUMBERS
-
-        (numbers.length - 1).downto(0) do |index|
-          minimum = index.zero? ? MIN_NUMBERS[0] : 0
-          reset_value = index.zero? ? MIN_NUMBERS[0] : MAX_PART
-
-          if numbers[index] > minimum
-            numbers[index] -= 1
-            @version_number = format_version(numbers)
-            return @version_number
-          end
-
-          numbers[index] = reset_value
+        mjr, mnr, ptch, bld = parsed_numbers
+        if [mjr, mnr, ptch, bld] == MIN_SEMVER
+          raise ArgumentError, "can't decrement minimum version"
         end
+
+        if bld.positive?
+          bld -= 1
+        elsif ptch.positive?
+          bld = MAX_SEGMENT
+          ptch -= 1
+        elsif mnr.positive?
+          bld = MAX_SEGMENT
+          ptch = MAX_SEGMENT
+          mnr -= 1
+        elsif mjr > MIN_SEMVER[0]
+          bld = MAX_SEGMENT
+          ptch = MAX_SEGMENT
+          mnr = MAX_SEGMENT
+          mjr -= 1
+        else
+          raise ArgumentError, "can't decrement minimum version"
+        end
+
+        format_version([mjr, mnr, ptch, bld])
       end
 
       def update_pubspec_version(_pubspec, pubspec_location)
@@ -115,12 +142,22 @@ module Fastlane
         [major, minor, patch, build].map(&:to_i)
       end
 
-      def format_version(numbers)
-        "#{numbers[0]}.#{numbers[1]}.#{numbers[2]}+#{numbers[3]}"
+      def format_version(nums)
+        mjr, mnr, ptch, bld = nums
+        @w_maj = [@w_maj, mjr.to_s.length].max
+        @w_min = [@w_min, mnr.to_s.length].max
+        @w_pat = [@w_pat, ptch.to_s.length].max
+        @w_bld = [@w_bld, bld.to_s.length].max
+        @version_number =
+          "#{mjr.to_s.rjust(@w_maj, '0')}." \
+          "#{mnr.to_s.rjust(@w_min, '0')}." \
+          "#{ptch.to_s.rjust(@w_pat, '0')}+" \
+          "#{bld.to_s.rjust(@w_bld, '0')}"
+        @version_number
       end
 
       def validate(version_number)
-        return if REGEX.match?(version_number.to_s)
+        return if SEGMENT_REGEX.match?(version_number.to_s)
 
         raise ArgumentError,
               'invalid version number, must be in format X.Y.Z+build (integers)'
